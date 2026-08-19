@@ -15,3 +15,14 @@
 
 # Add a feed source
 echo 'src-git helloworld https://github.com/fw876/helloworld.git' >>feeds.conf.default
+
+#!/bin/bash
+
+echo ">>> Clean broken Rust source/cache..."
+
+rm -rf dl/rust-*
+rm -rf dl/cargo
+rm -rf build_dir/host/rustc-*
+rm -rf build_dir/target-*/host/rustc-*
+
+echo ">>> Rust cache cleaned."
