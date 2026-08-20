@@ -6,16 +6,21 @@
 
 name: Build immortalwrt24.10 JCG-Q30 Latest SSRP
 
-permissions:
-  contents: write
-
 on:
   repository_dispatch:
   workflow_dispatch:
 
+# ==========================================================
+# GitHub Actions 权限
+# ==========================================================
+permissions:
+  contents: write
+  actions: write
+
 env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-24.10
   REPO_BRANCH: 2410
+
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: 2410-jcg-q30-ssrp.config
   DIY_P1_SH: 2410-diy-part1-ssrp.sh
@@ -33,18 +38,20 @@ jobs:
 
     steps:
 
-    # ==========================
+    # ========================================================
     # Checkout
-    # ==========================
+    # ========================================================
     - name: Checkout
-      uses: actions/checkout@main
+      uses: actions/checkout@v4
 
-    # ==========================
+
+    # ========================================================
     # 初始化编译环境
-    # ==========================
+    # ========================================================
     - name: Initialization environment
       env:
         DEBIAN_FRONTEND: noninteractive
+
       run: |
         sudo rm -rf \
           /etc/apt/sources.list.d/* \
@@ -58,18 +65,82 @@ jobs:
         sudo -E apt-get -qq update
 
         sudo -E apt-get -qq install \
-          ack antlr3 asciidoc autoconf automake autopoint \
-          binutils bison build-essential bzip2 ccache clang cmake \
-          cpio curl device-tree-compiler ecj fastjar flex gawk gettext \
-          gcc-multilib g++-multilib git gnutls-dev gperf haveged \
-          help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev \
-          libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
-          libncurses-dev libpython3-dev libreadline-dev libssl-dev \
-          libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp \
-          nano ninja-build p7zip p7zip-full patch pkgconf python3 \
-          python3-pip python3-ply python3-docutils python3-pyelftools \
-          qemu-utils re2c rsync scons squashfs-tools subversion swig \
-          texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev \
+          ack \
+          antlr3 \
+          asciidoc \
+          autoconf \
+          automake \
+          autopoint \
+          binutils \
+          bison \
+          build-essential \
+          bzip2 \
+          ccache \
+          clang \
+          cmake \
+          cpio \
+          curl \
+          device-tree-compiler \
+          ecj \
+          fastjar \
+          flex \
+          gawk \
+          gettext \
+          gcc-multilib \
+          g++-multilib \
+          git \
+          gnutls-dev \
+          gperf \
+          haveged \
+          help2man \
+          intltool \
+          lib32gcc-s1 \
+          libc6-dev-i386 \
+          libelf-dev \
+          libglib2.0-dev \
+          libgmp3-dev \
+          libltdl-dev \
+          libmpc-dev \
+          libmpfr-dev \
+          libncurses-dev \
+          libpython3-dev \
+          libreadline-dev \
+          libssl-dev \
+          libtool \
+          libyaml-dev \
+          libz-dev \
+          lld \
+          llvm \
+          lrzsz \
+          mkisofs \
+          msmtp \
+          nano \
+          ninja-build \
+          p7zip \
+          p7zip-full \
+          patch \
+          pkgconf \
+          python3 \
+          python3-pip \
+          python3-ply \
+          python3-docutils \
+          python3-pyelftools \
+          qemu-utils \
+          re2c \
+          rsync \
+          scons \
+          squashfs-tools \
+          subversion \
+          swig \
+          texinfo \
+          uglifyjs \
+          upx-ucl \
+          unzip \
+          vim \
+          wget \
+          xmlto \
+          xxd \
+          zlib1g-dev \
           zstd
 
         sudo -E apt-get -qq autoremove --purge
@@ -78,32 +149,42 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
 
         sudo mkdir -p /workdir
-        sudo chown $USER:$GROUPS /workdir
+        sudo chown "$USER:$GROUPS" /workdir
 
-    # ==========================
+
+    # ========================================================
     # 下载源码
-    # ==========================
+    # ========================================================
     - name: Clone source code
       working-directory: /workdir
+
       run: |
-        df -hT $PWD
+        df -hT "$PWD"
 
         git clone \
-          $REPO_URL \
-          -b $REPO_BRANCH \
+          "$REPO_URL" \
+          -b "$REPO_BRANCH" \
           openwrt
 
         ln -sf \
           /workdir/openwrt \
-          $GITHUB_WORKSPACE/openwrt
+          "$GITHUB_WORKSPACE/openwrt"
 
-    # ==========================
+
+    # ========================================================
     # DIY Part 1
-    # ==========================
+    # ========================================================
     - name: Load custom feeds
+
       run: |
-        [ -e "$FEEDS_CONF" ] && \
+        if [ -e "$FEEDS_CONF" ]; then
           mv "$FEEDS_CONF" openwrt/feeds.conf.default
+        fi
+
+        if [ ! -f "$DIY_P1_SH" ]; then
+          echo "ERROR: $DIY_P1_SH not found!"
+          exit 1
+        fi
 
         chmod +x "$DIY_P1_SH"
 
@@ -111,39 +192,57 @@ jobs:
 
         "$GITHUB_WORKSPACE/$DIY_P1_SH"
 
-    # ==========================
+
+    # ========================================================
     # 更新 feeds
-    # ==========================
+    # ========================================================
     - name: Update feeds
+
       run: |
         cd openwrt
 
         ./scripts/feeds update -a
 
+        # 替换 Golang feed
         rm -rf feeds/packages/lang/golang
 
         git clone \
           https://github.com/kenzok8/golang \
           feeds/packages/lang/golang
 
-    # ==========================
+
+    # ========================================================
     # 安装 feeds
-    # ==========================
+    # ========================================================
     - name: Install feeds
+
       run: |
         cd openwrt
 
         ./scripts/feeds install -a
 
-    # ==========================
-    # DIY Part 2 + 配置
-    # ==========================
-    - name: Load custom configuration
-      run: |
-        [ -e files ] && mv files openwrt/files
 
-        [ -e "$CONFIG_FILE" ] && \
-          mv "$CONFIG_FILE" openwrt/.config
+    # ========================================================
+    # DIY Part 2 + 配置
+    # ========================================================
+    - name: Load custom configuration
+
+      run: |
+        if [ -e files ]; then
+          mv files openwrt/files
+        fi
+
+        if [ ! -f "$CONFIG_FILE" ]; then
+          echo "ERROR: $CONFIG_FILE not found!"
+          exit 1
+        fi
+
+        mv "$CONFIG_FILE" openwrt/.config
+
+        if [ ! -f "$DIY_P2_SH" ]; then
+          echo "ERROR: $DIY_P2_SH not found!"
+          exit 1
+        fi
 
         chmod +x "$DIY_P2_SH"
 
@@ -151,11 +250,13 @@ jobs:
 
         "$GITHUB_WORKSPACE/$DIY_P2_SH"
 
-    # ==========================
+
+    # ========================================================
     # 下载源码包
-    # ==========================
+    # ========================================================
     - name: Download package
       id: package
+
       run: |
         cd openwrt
 
@@ -163,17 +264,29 @@ jobs:
 
         make download -j8
 
+        echo "Checking incomplete downloads..."
+
         find dl -size -1024c -exec ls -l {} \;
 
         find dl -size -1024c -exec rm -f {} \;
 
-    # ==========================
+
+    # ========================================================
     # 编译
-    # ==========================
+    # ========================================================
     - name: Compile the firmware
       id: compile
+
       run: |
         cd openwrt
+
+        echo "========================================"
+        echo "JCG Q30 MT7981"
+        echo "ImmortalWrt 24.10 / 2410"
+        echo "SSR Plus"
+        echo "Xray"
+        echo "Hysteria2"
+        echo "========================================"
 
         echo "$(nproc) thread compile"
 
@@ -189,36 +302,79 @@ jobs:
 
         if [ -s DEVICE_NAME ]; then
           echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> "$GITHUB_ENV"
+        else
+          echo "DEVICE_NAME=_JCG-Q30" >> "$GITHUB_ENV"
         fi
 
         echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> "$GITHUB_ENV"
 
-    # ==========================
+
+    # ========================================================
     # 检查空间
-    # ==========================
+    # ========================================================
     - name: Check space usage
+
       if: (!cancelled())
+
       run: |
         df -hT
 
-    # ==========================
+
+    # ========================================================
     # 上传完整 bin
-    # ==========================
+    # ========================================================
     - name: Upload bin directory
-      uses: actions/upload-artifact@main
-      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+
+      uses: actions/upload-artifact@v4
+
+      if: >
+        steps.compile.outputs.status == 'success' &&
+        env.UPLOAD_BIN_DIR == 'true'
+
       with:
         name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin
 
-    # ==========================
+
+    # ========================================================
     # 整理固件
-    # ==========================
+    # ========================================================
     - name: Organize files
       id: organize
-      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+
+      if: >
+        steps.compile.outputs.status == 'success' &&
+        env.UPLOAD_FIRMWARE == 'true' &&
+        !cancelled()
+
       run: |
-        cd openwrt/bin/targets/*/*
+        set -e
+
+        echo "Searching firmware directory..."
+
+        TARGET_DIR=$(find openwrt/bin/targets \
+          -mindepth 2 \
+          -maxdepth 2 \
+          -type d \
+          | head -n 1)
+
+        if [ -z "$TARGET_DIR" ]; then
+          echo "========================================"
+          echo "ERROR: Firmware directory not found!"
+          echo "========================================"
+
+          find openwrt/bin \
+            -maxdepth 4 \
+            -type f \
+            | head -100
+
+          exit 1
+        fi
+
+        echo "Firmware directory:"
+        echo "$TARGET_DIR"
+
+        cd "$TARGET_DIR"
 
         rm -rf packages
 
@@ -226,29 +382,42 @@ jobs:
 
         echo "status=success" >> "$GITHUB_OUTPUT"
 
-    # ==========================
+
+    # ========================================================
     # 上传 Artifact
-    # ==========================
+    # ========================================================
     - name: Upload firmware directory
-      uses: actions/upload-artifact@main
-      if: steps.organize.outputs.status == 'success' && !cancelled()
+
+      uses: actions/upload-artifact@v4
+
+      if: >
+        steps.organize.outputs.status == 'success' &&
+        !cancelled()
+
       with:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
-    # ==========================
+
+    # ========================================================
     # 创建 Release Tag
-    # ==========================
+    # ========================================================
     - name: Generate release tag
       id: tag
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+
+      if: >
+        env.UPLOAD_RELEASE == 'true' &&
+        steps.organize.outputs.status == 'success' &&
+        !cancelled()
+
       run: |
         RELEASE_TAG="$(date +"%Y.%m.%d-%H%M")"
 
         echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
 
         cat > 2410-release-ssrp.txt <<EOF
-        JCG Q30 / MT7981
+        # JCG Q30 / MT7981
+
         ImmortalWrt 24.10
         Branch: 2410
 
@@ -256,47 +425,72 @@ jobs:
         Xray
         Hysteria2
 
-        Build time:
-        $(date)
-
         Device:
         JCG Q30
+
+        Build time:
+        $(date)
         EOF
 
         echo "status=success" >> "$GITHUB_OUTPUT"
 
-    # ==========================
+
+    # ========================================================
     # 上传 GitHub Release
-    # ==========================
+    # ========================================================
     - name: Upload firmware to release
+
       uses: softprops/action-gh-release@v2
-      if: steps.tag.outputs.status == 'success' && !cancelled()
+
+      if: >
+        steps.tag.outputs.status == 'success' &&
+        !cancelled()
+
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       with:
         tag_name: ${{ steps.tag.outputs.release_tag }}
+
         name: JCG Q30 ImmortalWrt 24.10 ${{ steps.tag.outputs.release_tag }}
+
         body_path: 2410-release-ssrp.txt
+
         files: |
           ${{ env.FIRMWARE }}/*
 
-    # ==========================
+
+    # ========================================================
     # 删除旧 Workflow
-    # ==========================
+    # ========================================================
     - name: Delete workflow runs
+
       uses: Mattraks/delete-workflow-runs@main
+
+      if: always()
+
       with:
         retain_days: 0
         keep_minimum_runs: 2
 
-    # ==========================
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+    # ========================================================
     # 删除旧 Releases
-    # ==========================
+    # ========================================================
     - name: Remove old Releases
+
       uses: dev-drprasad/delete-older-releases@master
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+
+      if: >
+        env.UPLOAD_RELEASE == 'true' &&
+        !cancelled()
+
       with:
         keep_latest: 12
         delete_tags: true
+
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
