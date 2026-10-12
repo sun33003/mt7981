@@ -17,8 +17,10 @@ on:
   workflow_dispatch:
 
 env:
-  REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-24.10
-  REPO_BRANCH: 2410
+  # REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-24.10
+  # REPO_BRANCH: 2410
+  REPO_URL: https://github.com/immortalwrt/immortalwrt/
+  REPO_BRANCH: master
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: 2410-jcg-q30-ssrp.config
   DIY_P1_SH: 2410-diy-part1-ssrp.sh
